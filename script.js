@@ -1,124 +1,120 @@
-// --- 1. Seleção de Elementos ---
-const loginForm = document.getElementById('login-form');
-const mainNav = document.getElementById('main-nav');
-const loginScreen = document.getElementById('login-screen');
-const adminDashboard = document.getElementById('admin-dashboard');
-const userDashboard = document.getElementById('user-dashboard');
-const adminContent = document.getElementById('admin-content');
-const userRoomSelect = document.getElementById('room'); // Select do usuário
-const scheduleForm = document.getElementById('schedule-form');
-const appointmentsList = document.getElementById('my-appointments');
+// --- 1. Elementos do DOM ---
+const formularioLogin = document.getElementById('login-form');
+const navegacaoPrincipal = document.getElementById('main-nav');
+const telaLogin = document.getElementById('login-screen');
+const painelAdmin = document.getElementById('admin-dashboard');
+const painelUsuario = document.getElementById('user-dashboard');
+const conteudoAdmin = document.getElementById('admin-content');
+const selecaoSalaUsuario = document.getElementById('room'); // Select do usuário
+const formularioAgendamento = document.getElementById('schedule-form');
+const listaAgendamentosUsuario = document.getElementById('my-appointments');
 
-// --- 2. Dados Fictícios (Banco de Dados Simulado) ---
-const USERS = {
-    'admin': { password: '123', role: 'admin' },
-    'padrao': { password: '456', role: 'user' },
-    'colaborador1': { password: '789', role: 'user' },
-    'colaborador2': { password: '101', role: 'user' },
-    'colaborador3': { password: '102', role: 'user' }
+// --- 2. Dados ---
+const USUARIOS = {
+    'admin': { senha: '123', perfil: 'admin' },
+    'padrao': { senha: '456', perfil: 'user' },
+    'colaborador1': { senha: '789', perfil: 'user' },
+    'colaborador2': { senha: '101', perfil: 'user' },
+    'colaborador3': { senha: '102', perfil: 'user' }
 };
 
-let userAppointments = []; 
-let availableRooms = [
-    { id: 1, name: 'Sala 101', capacity: 30 },
-    { id: 2, name: 'Auditório', capacity: 150 },
-    { id: 3, name: 'Laboratório de Química', capacity: 25 }
+let salasDisponiveis = [
+    { id: 1, nome: 'Sala 101', capacidade: 30 },
+    { id: 2, nome: 'Auditório', capacidade: 150 },
+    { id: 3, nome: 'Laboratório de Química', capacidade: 25 }
 ];
-let nextRoomId = 4; // Próximo ID para novas salas
+let proximoIdSala = 4;
+
+let todosAgendamentos = []; // ARRAY DE AGENDAMENTOS REAIS
+
+let colaboradoresCadastrados = [
+    { id: 100, nome: 'Ana Silva', email: 'ana@escola.com', telefone: '(31) 9999-1111', perfil: 'user' },
+    { id: 101, nome: 'Bruno Costa', email: 'bruno@escola.com', telefone: '(31) 9999-2222', perfil: 'user' }
+];
+let proximoIdUsuario = 102;
+
+let usuarioAtual = null; // Armazena o usuário logado
 
 // Data de hoje formatada para YYYY-MM-DD
-const today = new Date().toISOString().split('T')[0];
-
-// ARRAY DE AGENDAMENTOS REAIS (INICIALMENTE VAZIO, conforme solicitado)
-let allAppointments = []; 
-
-// Array para armazenar colaboradores dinâmicos
-let registeredUsers = [
-    { id: 100, name: 'Ana Silva', email: 'ana@escola.com', phone: '(31) 9999-1111', role: 'user' },
-    { id: 101, name: 'Bruno Costa', email: 'bruno@escola.com', phone: '(31) 9999-2222', role: 'user' }
-];
-
-let nextUserId = 102; // ID para o próximo colaborador
-let currentUser = null; // Armazena o usuário logado
+const hoje = new Date().toISOString().split('T')[0];
 
 // Função auxiliar para formatar a data (DD/MM/AAAA)
-function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    const [year, month, day] = dateString.split('-');
-    return `${day}/${month}/${year}`;
+function formatarData(dataString) {
+    if (!dataString) return 'N/A';
+    const [ano, mes, dia] = dataString.split('-');
+    return `${dia}/${mes}/${ano}`;
 }
 
 // --- 3. Funções de Navegação e Rotas (SPA) ---
 
 /**
- * Redireciona para uma nova "página" (hash URL) e atualiza a interface.
+ * Redireciona e atualiza a interface com base no hash do URL.
  * @param {string} hash - O hash do URL (ex: '#relatorios').
  */
-function navigate(hash) {
+function navegar(hash) {
     window.location.hash = hash;
-    route(hash);
+    rotear(hash);
 }
 
 /**
  * Função principal de roteamento que exibe a página correta.
  */
-function route(hash) {
-    const role = currentUser ? currentUser.role : null;
-    let targetPage = hash.replace('#', '');
+function rotear(hash) {
+    const perfil = usuarioAtual ? usuarioAtual.perfil : null;
+    let paginaAlvo = hash.replace('#', '');
     
     // 1. Oculta todas as páginas
-    document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(pagina => pagina.classList.remove('active'));
     
-    // 2. Lógica de redirecionamento e exibição
+    // 2. Lógica de exibição e redirecionamento
     
-    if (!role && targetPage !== 'login' && targetPage !== '') {
-        showLogin();
+    if (!perfil && paginaAlvo !== 'login' && paginaAlvo !== '') {
+        exibirLogin();
         return;
     }
 
-    if (role === 'admin') {
-        showScreen(adminDashboard);
-        // Admin padrão agora vai para 'Meus Agendamentos'
-        renderAdminDashboard(targetPage || 'meus-agendamentos'); 
-        updateMainNav('admin');
-    } else if (role === 'user') {
-        showScreen(userDashboard);
-        renderUserDashboard();
-        updateMainNav('user');
+    if (perfil === 'admin') {
+        exibirTela(painelAdmin);
+        renderizarPainelAdmin(paginaAlvo || 'meus-agendamentos'); 
+        atualizarNavegacaoPrincipal('admin');
+    } else if (perfil === 'user') {
+        exibirTela(painelUsuario);
+        renderizarPainelUsuario();
+        atualizarNavegacaoPrincipal('user');
     } else {
-        showScreen(loginScreen);
-        mainNav.style.display = 'none';
+        exibirTela(telaLogin);
+        navegacaoPrincipal.style.display = 'none';
     }
 }
 
-function showScreen(screenToShow) {
-    document.querySelectorAll('.page').forEach(screen => {
-        screen.classList.remove('active');
+function exibirTela(telaParaExibir) {
+    document.querySelectorAll('.page').forEach(tela => {
+        tela.classList.remove('active');
     });
-    screenToShow.classList.add('active');
+    telaParaExibir.classList.add('active');
 }
 
-function showLogin() {
-    showScreen(loginScreen);
-    mainNav.style.display = 'none';
-    currentUser = null;
+function exibirLogin() {
+    exibirTela(telaLogin);
+    navegacaoPrincipal.style.display = 'none';
+    usuarioAtual = null;
     window.location.hash = '#login';
 }
 
-function logout() {
+function sair() {
     alert('Você saiu do sistema.');
-    currentUser = null;
-    showLogin();
+    usuarioAtual = null;
+    exibirLogin();
 }
 
 // --- 4. Renderização dos Painéis ---
 
-// Cria a barra de navegação principal (inclui Meus Agendamentos para o Admin)
-function updateMainNav(role) {
-    mainNav.style.display = 'block';
+// Cria a barra de navegação principal
+function atualizarNavegacaoPrincipal(perfil) {
+    navegacaoPrincipal.style.display = 'block';
     let navHTML = '';
     
-    if (role === 'admin') {
+    if (perfil === 'admin') {
         // Opções do Admin
         navHTML += `<a href="#meus-agendamentos">Meus Agendamentos</a>`; 
         navHTML += `<a href="#relatorios">Relatórios Gerais</a>`;
@@ -128,62 +124,65 @@ function updateMainNav(role) {
         navHTML += `<a href="#user" class="active-nav">Agendamento</a>`;
     }
     
-    navHTML += `<a href="#" onclick="logout()">Sair</a>`;
-    mainNav.innerHTML = navHTML;
+    // Adiciona o link Sair usando a função sair() global
+    navHTML += `<a href="#" onclick="sair()">Sair</a>`; 
+    navegacaoPrincipal.innerHTML = navHTML;
 }
 
 // Renderiza o conteúdo do Admin Dashboard 
-function renderAdminDashboard(view) {
+function renderizarPainelAdmin(vista) {
     let contentHTML = `
         <nav>
-            <a href="#meus-agendamentos" class="${view === 'meus-agendamentos' ? 'active-nav' : ''}">Meus Agendamentos</a>
-            <a href="#relatorios" class="${view === 'relatorios' ? 'active-nav' : ''}">Relatórios Gerais</a>
-            <a href="#gerenciar-salas" class="${view === 'gerenciar-salas' ? 'active-nav' : ''}">Gerenciar Salas</a>
-            <a href="#colaboradores" class="${view === 'colaboradores' ? 'active-nav' : ''}">Colaboradores</a>
+            <a href="#meus-agendamentos" class="${vista === 'meus-agendamentos' ? 'active-nav' : ''}">Meus Agendamentos</a>
+            <a href="#relatorios" class="${vista === 'relatorios' ? 'active-nav' : ''}">Relatórios Gerais</a>
+            <a href="#gerenciar-salas" class="${vista === 'gerenciar-salas' ? 'active-nav' : ''}">Gerenciar Salas</a>
+            <a href="#colaboradores" class="${vista === 'colaboradores' ? 'active-nav' : ''}">Colaboradores</a>
         </nav>
         <hr>
     `;
 
-    if (view === 'meus-agendamentos') {
-        contentHTML += renderMeusAgendamentosAdmin();
-    } else if (view === 'relatorios') {
-        contentHTML += renderRelatorios();
-    } else if (view === 'gerenciar-salas') {
-        contentHTML += renderGerenciarSalas();
-        setTimeout(setupAddRoomFormListener, 0);
-    } else if (view === 'colaboradores') {
-        contentHTML += renderColaboradores();
-        setTimeout(setupCollaboratorFormListener, 0); 
+    if (vista === 'meus-agendamentos') {
+        contentHTML += renderizarMeusAgendamentosAdmin();
+    } else if (vista === 'relatorios') {
+        contentHTML += renderizarRelatorios();
+    } else if (vista === 'gerenciar-salas') {
+        contentHTML += renderizarGerenciarSalas();
+        // Chama o setup do listener para que ele seja adicionado APÓS a renderização do DOM
+        setTimeout(configurarListenerFormularioSala, 0); 
+    } else if (vista === 'colaboradores') {
+        contentHTML += renderizarColaboradores();
+        // Chama o setup do listener para que ele seja adicionado APÓS a renderização do DOM
+        setTimeout(configurarListenerFormularioColaborador, 0); 
     }
 
-    adminContent.innerHTML = contentHTML;
+    conteudoAdmin.innerHTML = contentHTML;
 }
 
 // Renderiza apenas os agendamentos do Admin (Admin Dashboard)
-function renderMeusAgendamentosAdmin() {
-    const adminApps = allAppointments.filter(app => app.user === currentUser.username);
+function renderizarMeusAgendamentosAdmin() {
+    const agendamentosAdmin = todosAgendamentos.filter(agendamento => agendamento.usuario === usuarioAtual.username);
 
     return `
         <h3>📝 Meus Agendamentos (Admin)</h3>
-        <p>Aqui você vê apenas os agendamentos feitos pela sua conta (**${currentUser.username}**).</p>
+        <p>Aqui você vê apenas os agendamentos feitos pela sua conta (**${usuarioAtual.username}**).</p>
         
         <table id="admin-report">
             <thead>
                 <tr><th>Data</th><th>Sala</th><th>Turno</th><th>Ações</th></tr>
             </thead>
             <tbody>
-                ${adminApps.length === 0 
+                ${agendamentosAdmin.length === 0 
                     ? '<tr><td colspan="4" style="text-align: center;">Nenhum agendamento feito por você ainda.</td></tr>'
-                    : adminApps.map(app => {
+                    : agendamentosAdmin.map(agendamento => {
                         // Encontra o índice no array geral para o botão de cancelar
-                        const appIndex = allAppointments.findIndex(a => a.date === app.date && a.room === app.room && a.time === app.time && a.user === app.user);
+                        const indiceAgendamento = todosAgendamentos.findIndex(a => a.data === agendamento.data && a.sala === agendamento.sala && a.turno === agendamento.turno && a.usuario === agendamento.usuario);
 
                         return `
                         <tr>
-                            <td>${formatDate(app.date)}</td>
-                            <td>${app.room}</td>
-                            <td>${app.time}</td>
-                            <td><button class="cancel-btn" data-index="${appIndex}" style="background-color: #dc3545; margin-top:0;">Cancelar</button></td>
+                            <td>${formatarData(agendamento.data)}</td>
+                            <td>${agendamento.sala}</td>
+                            <td>${agendamento.turno}</td>
+                            <td><button class="cancelar-btn" data-index="${indiceAgendamento}" style="background-color: #dc3545; margin-top:0;">Cancelar</button></td>
                         </tr>
                         `;
                     }).join('')
@@ -192,39 +191,40 @@ function renderMeusAgendamentosAdmin() {
         </table>
         <script>
             // Re-adiciona o listener de cancelamento para o novo botão
-            document.querySelectorAll('.cancel-btn').forEach(button => {
-                button.addEventListener('click', cancelAppointmentAdmin);
+            document.querySelectorAll('.cancelar-btn').forEach(button => {
+                // Certifica-se de usar a função global cancelarAgendamentoAdmin
+                button.addEventListener('click', (e) => cancelamentoAdmin(e.target.getAttribute('data-index'))); 
             });
         </script>
     `;
 }
 
 // Conteúdo da página de Relatórios (Geral - TODOS os agendamentos)
-function renderRelatorios() {
+function renderizarRelatorios() {
     // 1. Calcular a ocupação por Turno
-    const turnos = allAppointments.reduce((acc, app) => {
-        acc[app.time] = (acc[app.time] || 0) + 1;
+    const contagemTurnos = todosAgendamentos.reduce((acc, agendamento) => {
+        acc[agendamento.turno] = (acc[agendamento.turno] || 0) + 1;
         return acc;
     }, {});
     
     // 2. Determinar o Turno Mais Ocupado
-    let mostUsedTurn = 'Nenhum';
-    let maxCount = 0;
+    let turnoMaisUsado = 'Nenhum';
+    let contagemMaxima = 0;
     
-    // Sorts the array of tuples [turn, count] by count in descending order
-    const sortedTurns = Object.entries(turnos).sort(([, a], [, b]) => b - a);
+    // Ordena o array de tuplas [turno, contagem] por contagem em ordem decrescente
+    const turnosOrdenados = Object.entries(contagemTurnos).sort(([, a], [, b]) => b - a);
     
-    if (sortedTurns.length > 0) {
-        mostUsedTurn = sortedTurns[0][0];
-        maxCount = sortedTurns[0][1];
+    if (turnosOrdenados.length > 0) {
+        turnoMaisUsado = turnosOrdenados[0][0];
+        contagemMaxima = turnosOrdenados[0][1];
     }
     
     // 3. Montar o HTML com os dados
     return `
         <h3>📊 Relatório de Agendamentos Gerais</h3>
         
-        <p>Total de Agendamentos Reais: **${allAppointments.length}**</p>
-        <p>Turno Mais Ocupado: **${mostUsedTurn}** (${maxCount} agendamentos)</p>
+        <p>Total de Agendamentos Reais: **${todosAgendamentos.length}**</p>
+        <p>Turno Mais Ocupado: **${turnoMaisUsado}** (${contagemMaxima} agendamentos)</p>
         
         <h4>Detalhe por Sala/Turno (Todos os Agendamentos do Sistema)</h4>
         <table id="admin-report">
@@ -232,14 +232,14 @@ function renderRelatorios() {
                 <tr><th>Data</th><th>Sala</th><th>Turno</th><th>Agendado Por</th></tr>
             </thead>
             <tbody>
-                ${allAppointments.length === 0 
+                ${todosAgendamentos.length === 0 
                     ? '<tr><td colspan="4" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>'
-                    : allAppointments.map(app => `
+                    : todosAgendamentos.map(agendamento => `
                         <tr>
-                            <td>${formatDate(app.date)}</td>
-                            <td>${app.room}</td>
-                            <td>${app.time}</td>
-                            <td>${app.user}</td>
+                            <td>${formatarData(agendamento.data)}</td>
+                            <td>${agendamento.sala}</td>
+                            <td>${agendamento.turno}</td>
+                            <td>${agendamento.usuario}</td>
                         </tr>
                     `).join('')
                 }
@@ -249,7 +249,7 @@ function renderRelatorios() {
 }
 
 // Conteúdo da página de Gerenciar Salas
-function renderGerenciarSalas() {
+function renderizarGerenciarSalas() {
     return `
         <h3>🏢 Gerenciamento de Salas</h3>
         <p>Aqui você pode adicionar, editar ou remover salas de agendamento.</p>
@@ -271,14 +271,14 @@ function renderGerenciarSalas() {
                 <tr><th>ID</th><th>Nome da Sala</th><th>Capacidade</th><th>Ações</th></tr>
             </thead>
             <tbody>
-                ${availableRooms.map(room => `
+                ${salasDisponiveis.map(sala => `
                     <tr>
-                        <td>${room.id}</td>
-                        <td>${room.name}</td>
-                        <td>${room.capacity}</td>
+                        <td>${sala.id}</td>
+                        <td>${sala.nome}</td>
+                        <td>${sala.capacidade}</td>
                         <td>
-                            <button style="background-color: orange;" onclick="alert('Editar ${room.name}')">Editar</button>
-                            <button style="background-color: red;" onclick="deleteRoom(${room.id})">Remover</button>
+                            <button style="background-color: orange;" onclick="alert('Editar ${sala.nome}')">Editar</button>
+                            <button style="background-color: red;" onclick="excluirSala(${sala.id})">Remover</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -288,7 +288,7 @@ function renderGerenciarSalas() {
 }
 
 // Conteúdo da página de Colaboradores
-function renderColaboradores() {
+function renderizarColaboradores() {
     let contentHTML = `
         <h3>🧑‍💻 Gerenciamento de Colaboradores</h3>
         <p>Cadastre novos usuários para que possam fazer agendamentos.</p>
@@ -318,24 +318,25 @@ function renderColaboradores() {
             <tbody>
     `;
     
-    const fixedUsers = Object.keys(USERS)
+    // Usuários fixos (Admin e Padrão)
+    const usuariosFixos = Object.keys(USUARIOS)
         .filter(username => ['admin', 'padrao'].includes(username))
         .map(username => ({
-            name: username === 'admin' ? 'Administrador' : 'Usuário Padrão',
+            nome: username === 'admin' ? 'Administrador' : 'Usuário Padrão',
             email: username,
-            phone: 'N/A (Fixo)',
-            isFixed: true
+            telefone: 'N/A (Fixo)',
+            isFixo: true
         }));
 
-    const allCollabs = [...fixedUsers, ...registeredUsers];
+    const todosColaboradores = [...usuariosFixos, ...colaboradoresCadastrados];
 
-    contentHTML += allCollabs.map(colab => `
+    contentHTML += todosColaboradores.map(colaborador => `
         <tr>
-            <td>${colab.name}</td>
-            <td>${colab.email}</td>
-            <td>${colab.phone}</td>
+            <td>${colaborador.nome}</td>
+            <td>${colaborador.email}</td>
+            <td>${colaborador.telefone}</td>
             <td>
-                ${colab.isFixed ? 'Usuário Fixo' : `<button style="background-color: red;" onclick="deleteCollaborator(${colab.id})">Remover</button>`}
+                ${colaborador.isFixo ? 'Usuário Fixo' : `<button style="background-color: red;" onclick="excluirColaborador(${colaborador.id})">Remover</button>`}
             </td>
         </tr>
     `).join('');
@@ -348,226 +349,228 @@ function renderColaboradores() {
     return contentHTML;
 }
 
-
 // Renderiza o painel do Usuário Padrão (Agendamento e Meus Agendamentos)
-function renderUserDashboard() {
-    // Preenche o campo SELECT das salas
-    userRoomSelect.innerHTML = availableRooms.map(room => 
-        `<option value="${room.name}">${room.name}</option>`
+function renderizarPainelUsuario() {
+    
+    // 1. Preenche o select de salas
+    selecaoSalaUsuario.innerHTML = salasDisponiveis.map(sala => 
+        `<option value="${sala.nome}">${sala.nome}</option>`
     ).join('');
     
-    // Renderiza a lista de agendamentos do usuário
-    appointmentsList.innerHTML = ''; 
+    // 2. Renderiza a lista de agendamentos do usuário logado
+    listaAgendamentosUsuario.innerHTML = ''; 
 
-    const userApps = allAppointments.filter(app => app.user === currentUser.username);
+    const agendamentosUsuario = todosAgendamentos.filter(agendamento => agendamento.usuario === usuarioAtual.username);
     
-    if (userApps.length === 0) {
-        appointmentsList.innerHTML = '<p>Nenhum agendamento feito ainda.</p>';
+    if (agendamentosUsuario.length === 0) {
+        listaAgendamentosUsuario.innerHTML = '<p>Nenhum agendamento feito ainda.</p>';
         return;
     }
 
-    userApps.forEach((app, index) => {
-        // Encontra o índice correto no array principal (allAppointments) para o botão de cancelar
-        const appIndex = allAppointments.findIndex(a => a.date === app.date && a.room === app.room && a.time === app.time && a.user === app.user);
+    agendamentosUsuario.forEach(agendamento => {
+        // Encontra o índice no array geral para o botão de cancelar
+        const indiceAgendamento = todosAgendamentos.findIndex(a => a.data === agendamento.data && a.sala === agendamento.sala && a.turno === agendamento.turno && a.usuario === agendamento.usuario);
 
         const li = document.createElement('li');
         li.innerHTML = `
-            <span>Data: **${formatDate(app.date)}** | Sala: **${app.room}** | Turno: **${app.time}**</span>
-            <button class="cancel-btn" data-index="${appIndex}">Cancelar</button>
+            <span>Data: **${formatarData(agendamento.data)}** | Sala: **${agendamento.sala}** | Turno: **${agendamento.turno}**</span>
+            <button class="cancelar-btn" data-index="${indiceAgendamento}">Cancelar</button>
         `;
-        appointmentsList.appendChild(li);
+        listaAgendamentosUsuario.appendChild(li);
     });
     
-    document.querySelectorAll('.cancel-btn').forEach(button => {
-        button.addEventListener('click', cancelAppointment);
+    document.querySelectorAll('.cancelar-btn').forEach(button => {
+        // Usa a função de cancelamento padrão (usuário)
+        button.addEventListener('click', (e) => cancelamentoUsuario(e.target.getAttribute('data-index'))); 
     });
 }
 
-// --- 5. Lógica de Interação ---
+
+// --- 5. Lógica da Aplicação (Event Listeners e Funções) ---
 
 // Lógica de Login
-loginForm.addEventListener('submit', function(e) {
+formularioLogin.addEventListener('submit', function(e) {
     e.preventDefault(); 
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+    const nomeUsuario = document.getElementById('username').value;
+    const senha = document.getElementById('password').value;
 
-    const user = USERS[username];
+    const usuario = USUARIOS[nomeUsuario];
 
-    if (user && user.password === password) {
-        currentUser = { username, role: user.role };
-        alert(`Login bem-sucedido! Acesso como ${user.role}.`);
+    if (usuario && usuario.senha === senha) {
+        usuarioAtual = { username: nomeUsuario, perfil: usuario.perfil };
+        alert(`Login bem-sucedido! Acesso como ${usuario.perfil}.`);
         
-        // Redireciona o admin para a nova aba 'Meus Agendamentos' por padrão
-        navigate(user.role === 'admin' ? '#meus-agendamentos' : '#user');
+        navegar(usuario.perfil === 'admin' ? '#meus-agendamentos' : '#user');
         
     } else {
         alert('Usuário ou Senha incorretos!');
     }
 });
 
-// Lógica de Agendamento (Com data e validação de conflito)
-scheduleForm.addEventListener('submit', function(e) {
+// Lógica de Agendamento 
+formularioAgendamento.addEventListener('submit', function(e) {
     e.preventDefault();
-    const date = document.getElementById('date').value; 
-    const room = document.getElementById('room').value;
-    const time = document.getElementById('time').value;
+    const data = document.getElementById('date').value; 
+    const sala = document.getElementById('room').value;
+    const turno = document.getElementById('time').value;
 
-    // Validação de data: Não permitir agendar no passado
-    if (new Date(date) < new Date(today)) {
+    // Não permitir agendar no passado
+    if (new Date(data) < new Date(hoje)) {
         alert('❌ Erro: Não é possível agendar em uma data passada.');
         return;
     }
 
-    // CONFLITO: verifica se a sala já está agendada nesta DATA e TURNO por qualquer usuário.
-    const isConflict = allAppointments.some(app => app.date === date && app.room === room && app.time === time);
+    // Verifica se a sala já está agendada nesta DATA e TURNO por qualquer usuário.
+    const conflito = todosAgendamentos.some(agendamento => agendamento.data === data && agendamento.sala === sala && agendamento.turno === turno);
 
-    if (isConflict) {
-        alert(`❌ Erro: A sala ${room} já está agendada para o turno da ${time} na data ${formatDate(date)}.`);
+    if (conflito) {
+        alert(`❌ Erro: A sala ${sala} já está agendada para o turno da ${turno} na data ${formatarData(data)}.`);
         return;
     }
     
-    const newAppointment = { date, room, time, user: currentUser.username }; 
-    allAppointments.push(newAppointment); 
+    const novoAgendamento = { data, sala, turno, usuario: usuarioAtual.username }; 
+    todosAgendamentos.push(novoAgendamento); 
 
-    alert(`✅ Sucesso! Sala ${room} agendada para o turno da ${time} no dia ${formatDate(date)}.`);
-    scheduleForm.reset(); 
+    alert(`✅ Sucesso! Sala ${sala} agendada para o turno da ${turno} no dia ${formatarData(data)}.`);
+    formularioAgendamento.reset(); 
     
-    if (currentUser.role === 'admin') {
-        renderAdminDashboard('meus-agendamentos');
+    if (usuarioAtual.perfil === 'admin') {
+        renderizarPainelAdmin('meus-agendamentos');
     } else {
-        renderUserDashboard(); 
+        renderizarPainelUsuario(); 
     }
 });
 
 // Lógica de Cancelamento (para o usuário Padrão)
-function cancelAppointment(e) {
-    const adminIndex = e.target.getAttribute('data-index');
-    const app = allAppointments[adminIndex];
+function cancelamentoUsuario(indice) {
+    const agendamento = todosAgendamentos[indice];
     
-    if (confirm(`Tem certeza que deseja cancelar o agendamento da sala ${app.room} no turno da ${app.time} no dia ${formatDate(app.date)}?`)) {
-        allAppointments.splice(adminIndex, 1);
-        alert(`🚫 Agendamento cancelado: Sala ${app.room} no dia ${formatDate(app.date)}.`);
-        renderUserDashboard(); 
+    if (confirm(`Tem certeza que deseja cancelar o agendamento da sala ${agendamento.sala} no turno da ${agendamento.turno} no dia ${formatarData(agendamento.data)}?`)) {
+        todosAgendamentos.splice(indice, 1);
+        alert(`🚫 Agendamento cancelado: Sala ${agendamento.sala} no dia ${formatarData(agendamento.data)}.`);
+        renderizarPainelUsuario(); 
     }
 }
 
-// Lógica de Cancelamento (para o Admin)
-function cancelAppointmentAdmin(e) {
-    const adminIndex = e.target.getAttribute('data-index');
-    const app = allAppointments[adminIndex];
+// Lógica de Cancelamento (para o Admin - chamada via script injetado na renderização)
+function cancelamentoAdmin(indice) {
+    const agendamento = todosAgendamentos[indice];
 
-    if (confirm(`Tem certeza que deseja cancelar o agendamento da sala ${app.room} no turno da ${app.time} no dia ${formatDate(app.date)}?`)) {
-        allAppointments.splice(adminIndex, 1);
-        alert(`🚫 Agendamento cancelado: Sala ${app.room} no dia ${formatDate(app.date)}.`);
-        renderAdminDashboard('meus-agendamentos'); // Recarrega a view correta
+    if (confirm(`Tem certeza que deseja cancelar o agendamento da sala ${agendamento.sala} no turno da ${agendamento.turno} no dia ${formatarData(agendamento.data)}?`)) {
+        todosAgendamentos.splice(indice, 1);
+        alert(`🚫 Agendamento cancelado: Sala ${agendamento.sala} no dia ${formatarData(agendamento.data)}.`);
+        renderizarPainelAdmin('meus-agendamentos'); // Recarrega a view correta
     }
 }
+
+
+// --- Funções de Gerenciamento de Salas ---
 
 // Lógica de Adicionar Sala
-function addRoom(e) {
+function adicionarSala(e) {
     e.preventDefault();
     const form = document.getElementById('add-room-form');
-    const name = document.getElementById('new-room-name').value.trim();
-    const capacity = parseInt(document.getElementById('new-room-capacity').value);
+    const nome = document.getElementById('new-room-name').value.trim();
+    const capacidade = parseInt(document.getElementById('new-room-capacity').value);
 
-    if (availableRooms.some(room => room.name.toLowerCase() === name.toLowerCase())) {
+    if (salasDisponiveis.some(sala => sala.nome.toLowerCase() === nome.toLowerCase())) {
         alert('❌ Erro: Uma sala com este nome já existe.');
         return;
     }
 
-    const newRoom = {
-        id: nextRoomId++,
-        name: name,
-        capacity: capacity
+    const novaSala = {
+        id: proximoIdSala++,
+        nome: nome,
+        capacidade: capacidade
     };
-    availableRooms.push(newRoom);
+    salasDisponiveis.push(novaSala);
     
-    alert(`✅ Sala "${name}" com capacidade para ${capacity} adicionada com sucesso!`);
+    alert(`✅ Sala "${nome}" com capacidade para ${capacidade} adicionada com sucesso!`);
     form.reset(); 
     
-    renderAdminDashboard('gerenciar-salas');
+    renderizarPainelAdmin('gerenciar-salas');
 }
 
 // Lógica de Remover Sala (Admin)
-function deleteRoom(roomId) {
-    if (confirm(`Tem certeza que deseja remover a sala com ID ${roomId}? Isso removerá também seus agendamentos.`)) {
-        const roomName = availableRooms.find(r => r.id === roomId)?.name;
+function excluirSala(idSala) {
+    if (confirm(`Tem certeza que deseja remover a sala com ID ${idSala}? Isso removerá também seus agendamentos.`)) {
+        const nomeSala = salasDisponiveis.find(r => r.id === idSala)?.nome;
         
-        availableRooms = availableRooms.filter(room => room.id !== roomId);
+        salasDisponiveis = salasDisponiveis.filter(sala => sala.id !== idSala);
         
-        allAppointments = allAppointments.filter(app => app.room !== roomName);
+        todosAgendamentos = todosAgendamentos.filter(agendamento => agendamento.sala !== nomeSala);
         
-        alert(`Sala ${roomName} removida com sucesso (Simulação).`);
-        renderAdminDashboard('gerenciar-salas');
+        alert(`Sala ${nomeSala} removida com sucesso (Simulação).`);
+        renderizarPainelAdmin('gerenciar-salas');
     }
 }
 
 // Adiciona o event listener do formulário de adicionar sala
-function setupAddRoomFormListener() {
-    const addRoomForm = document.getElementById('add-room-form');
-    if (addRoomForm) {
-        addRoomForm.addEventListener('submit', addRoom);
+function configurarListenerFormularioSala() {
+    const formularioAdicionarSala = document.getElementById('add-room-form');
+    if (formularioAdicionarSala) {
+        formularioAdicionarSala.addEventListener('submit', adicionarSala);
     }
 }
 
 
-// --- LÓGICA DE COLABORADORES ---
+// --- Funções de Gerenciamento de Colaboradores ---
 
 // Lógica de Adicionar Colaborador
-function addCollaborator(e) {
+function adicionarColaborador(e) {
     e.preventDefault();
     const form = document.getElementById('add-collaborator-form');
-    const name = document.getElementById('colab-name').value;
+    const nome = document.getElementById('colab-name').value;
     const email = document.getElementById('colab-email').value;
-    const phone = document.getElementById('colab-phone').value;
-    const password = document.getElementById('colab-password').value;
+    const telefone = document.getElementById('colab-phone').value;
+    const senha = document.getElementById('colab-password').value;
 
-    if (USERS[email]) {
+    if (USUARIOS[email]) {
         alert('❌ Erro: Já existe um usuário com este email/username.');
         return;
     }
 
-    const newCollab = {
-        id: nextUserId++,
-        name: name,
+    const novoColaborador = {
+        id: proximoIdUsuario++,
+        nome: nome,
         email: email, 
-        phone: phone,
-        role: 'user'
+        telefone: telefone,
+        perfil: 'user'
     };
-    registeredUsers.push(newCollab);
+    colaboradoresCadastrados.push(novoColaborador);
     
-    USERS[email] = { password: password, role: 'user' };
+    USUARIOS[email] = { senha: senha, perfil: 'user' };
     
-    alert(`✅ Colaborador ${name} (Usuário: ${email}) cadastrado com sucesso!`);
+    alert(`✅ Colaborador ${nome} (Usuário: ${email}) cadastrado com sucesso!`);
     form.reset(); 
     
-    renderAdminDashboard('colaboradores');
+    renderizarPainelAdmin('colaboradores');
 }
 
 // Lógica de Excluir Colaborador
-function deleteCollaborator(collabId) {
-    const colabIndex = registeredUsers.findIndex(u => u.id === collabId);
-    if (colabIndex === -1) return;
+function excluirColaborador(idColaborador) {
+    const indiceColaborador = colaboradoresCadastrados.findIndex(u => u.id === idColaborador);
+    if (indiceColaborador === -1) return;
     
-    const colabToDelete = registeredUsers[colabIndex];
+    const colaboradorParaExcluir = colaboradoresCadastrados[indiceColaborador];
 
-    if (confirm(`Tem certeza que deseja remover o colaborador: ${colabToDelete.name}?`)) {
-        registeredUsers.splice(colabIndex, 1);
+    if (confirm(`Tem certeza que deseja remover o colaborador: ${colaboradorParaExcluir.nome}?`)) {
+        colaboradoresCadastrados.splice(indiceColaborador, 1);
         
-        delete USERS[colabToDelete.email];
+        delete USUARIOS[colaboradorParaExcluir.email];
         
-        allAppointments = allAppointments.filter(app => app.user !== colabToDelete.email);
+        todosAgendamentos = todosAgendamentos.filter(agendamento => agendamento.usuario !== colaboradorParaExcluir.email);
         
-        alert(`🚫 Colaborador ${colabToDelete.name} removido com sucesso.`);
-        renderAdminDashboard('colaboradores');
+        alert(`🚫 Colaborador ${colaboradorParaExcluir.nome} removido com sucesso.`);
+        renderizarPainelAdmin('colaboradores');
     }
 }
 
 // Adiciona o event listener do formulário de colaboradores. 
-function setupCollaboratorFormListener() {
-    const addCollabForm = document.getElementById('add-collaborator-form');
-    if (addCollabForm) {
-        addCollabForm.addEventListener('submit', addCollaborator);
+function configurarListenerFormularioColaborador() {
+    const formularioAdicionarColaborador = document.getElementById('add-collaborator-form');
+    if (formularioAdicionarColaborador) {
+        formularioAdicionarColaborador.addEventListener('submit', adicionarColaborador);
     }
 }
 
@@ -576,10 +579,10 @@ function setupCollaboratorFormListener() {
 
 // Escuta a mudança de hash no URL (navegação)
 window.addEventListener('hashchange', () => {
-    route(window.location.hash);
+    rotear(window.location.hash);
 });
 
 // Inicializa a aplicação
 document.addEventListener('DOMContentLoaded', () => {
-    route(window.location.hash || '#login');
+    rotear(window.location.hash || '#login');
 });
